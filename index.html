@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma de Gestión de Trends</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%);
+            min-height: 100vh;
+        }
+
+        /* Login Styles */
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid #bbdefb;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: #2196f3;
+            border-radius: 15px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            color: white;
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: none;
+            min-height: 100vh;
+            background: #f5f5f5;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            position: fixed;
+            height: 100vh;
+            transition: width 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .sidebar.collapsed {
+            width: 80px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+            color: white;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 15px 20px;
+            color: #333;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .nav-item:hover {
+            background: #e3f2fd;
+            color: #2196f3;
+        }
+
+        .nav-item.active {
+            background: #e3f2fd;
+            color: #2196f3;
+            font-weight: 600;
+        }
+
+        .content {
+            margin-left: 260px;
+            padding: 30px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .sidebar.collapsed + .content {
+            margin-left: 80px;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #2196f3;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #2196f3;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1976d2;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 24px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            transform: translateY(-2px);
+        }
+
+        .trends-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .trend-card {
+            position: relative;
+        }
+
+        .trend-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .category-badge {
+            background: #e3f2fd;
+            color: #2196f3;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .trend-status {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .status-completed {
+            color: #4caf50;
+            font-weight: 600;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #fafafa;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 30px;
+            position: relative;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+
+        .alert-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        /* History Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #2196f3;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #2196f3;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 36px;
+            font-weight: 700;
+            color: #1976d2;
+            margin: 10px 0;
+        }
+
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-admin {
+            background: #e1bee7;
+            color: #6a1b9a;
+        }
+
+        .badge-user {
+            background: #e0e0e0;
+            color: #424242;
+        }
+
+        .badge-blocked {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
+        .badge-active {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .confirm-btn {
+            background: #4caf50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .confirm-btn:hover {
+            background: #45a049;
+        }
+
+        .confirm-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .history-entry {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-time {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .toggle-sidebar {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .icon-user {
+            width: 35px;
+            height: 35px;
+            background: #e3f2fd;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <div class="logo" style="font-weight: bold; font-size: 24px;">T</div>
+                <h1>Trends Platform</h1>
+                <p style="color: #666; margin-top: 10px;">Ingresa a tu cuenta</p>
+            </div>
+            
+            <div id="loginError" class="alert alert-error" style="display: none;"></div>
+            
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="username" placeholder="Ingresa tu usuario" onkeypress="if(event.key === 'Enter') login()">
+            </div>
+            
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" id="password" placeholder="Ingresa tu contraseña" onkeypress="if(event.key === 'Enter') login()">
+            </div>
+            
+            <button class="btn btn-primary" style="width: 100%;" onclick="login()">
+                Iniciar Sesión
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="main-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2 id="sidebarTitle">Trends Admin</h2>
+                <button class="toggle-sidebar" onclick="toggleSidebar()">☰</button>
+            </div>
+            
+            <nav id="navigation">
+                <button class="nav-item active" onclick="showSection('trends')">
+                    Trends
+                </button>
+                <button class="nav-item" id="usersNav" onclick="showSection('users')" style="display: none;">
+                    Usuarios
+                </button>
+                <button class="nav-item" id="historyNav" onclick="showSection('history')" style="display: none;">
+                    Historial
+                </button>
+                <button class="nav-item" onclick="logout()">
+                    Cerrar Sesión
+                </button>
+            </nav>
+            
+            <div style="position: absolute; bottom: 20px; left: 20px; right: 20px;">
+                <div class="card" style="margin: 0; padding: 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 40px; height: 40px; background: #e3f2fd; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #2196f3;">
+                            U
+                        </div>
+                        <div id="userInfo">
+                            <div style="font-weight: 600;" id="currentUsername">Usuario</div>
+                            <div style="font-size: 12px; color: #666;" id="currentRole">Rol</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Trends Section -->
+            <div id="trendsSection">
+                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 30px;">
+                    <h1 style="flex: 1;">Trends Actuales</h1>
+                    <button id="addTrendBtn" class="btn btn-primary" onclick="showNewTrendModal()" style="display: none;">
+                        + Nuevo Trend
+                    </button>
+                </div>
+                
+                <div id="trendsGrid" class="trends-grid"></div>
+            </div>
+
+            <!-- Users Section -->
+            <div id="usersSection" style="display: none;">
+                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 30px;">
+                    <h1 style="flex: 1;">Gestión de Usuarios</h1>
+                    <button class="btn btn-primary" onclick="showNewUserModal()">
+                        + Nuevo Usuario
+                    </button>
+                </div>
+                
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Rol</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- History Section -->
+            <div id="historySection" style="display: none;">
+                <h1 style="margin-bottom: 30px;">Historial del Sistema</h1>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div>Total Inicios de Sesión</div>
+                        <div class="stat-number" id="totalLogins">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div>Trends Confirmados</div>
+                        <div class="stat-number" id="totalConfirmations">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div>Cierres de Sesión</div>
+                        <div class="stat-number" id="totalLogouts">0</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="tabs">
+                        <button class="tab active" onclick="showHistoryTab('logins')">Inicios de Sesión</button>
+                        <button class="tab" onclick="showHistoryTab('confirmations')">Confirmaciones de Trends</button>
+                        <button class="tab" onclick="showHistoryTab('logouts')">Cierres de Sesión</button>
+                    </div>
+                    
+                    <div id="historyContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New User Modal -->
+    <div id="newUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Crear Nuevo Usuario</h2>
+                <button class="close-btn" onclick="closeModal('newUserModal')">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label>Nombre de Usuario</label>
+                <input type="text" id="newUsername" placeholder="Ingresa el nombre de usuario">
+            </div>
+            
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" id="newPassword" placeholder="Ingresa la contraseña">
+            </div>
+            
+            <div class="form-group">
+                <label>Rol</label>
+                <select id="newRole">
+                    <option value="user">Usuario</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="createUser()">Crear Usuario</button>
+                <button class="btn btn-secondary" onclick="closeModal('newUserModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Trend Modal -->
+    <div id="newTrendModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Crear Nuevo Trend</h2>
+                <button class="close-btn" onclick="closeModal('newTrendModal')">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label>Título</label>
+                <input type="text" id="trendTitle" placeholder="Título del trend">
+            </div>
+            
+            <div class="form-group">
+                <label>Descripción</label>
+                <textarea id="trendDescription" rows="3" placeholder="Descripción del trend"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Categoría</label>
+                <input type="text" id="trendCategory" placeholder="Categoría del trend">
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="createTrend()">Crear Trend</button>
+                <button class="btn btn-secondary" onclick="closeModal('newTrendModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration encoding
+        const _0x4a2c = ['YXBpS2V5','QUl6YVN5QnZfYjVJVnBhcGVrZ0VoeklBeTZQTDc5TnFxX1Z0X2xz','YXV0aERvbWFpbg==','dHJlbmRzLTdhZjM3LmZpcmViYXNlYXBwLmNvbQ==','cHJvamVjdElk','dHJlbmRzLTdhZjM3','c3RvcmFnZUJ1Y2tldA==','dHJlbmRzLTdhZjM3LmZpcmViYXNlc3RvcmFnZS5hcHA=','bWVzc2FnaW5nU2VuZGVySWQ=','MTA4MTY1NjYxNDU5MA==','YXBwSWQ=','MToxMDgxNjU2NjE0NTkwOndlYjpmM2JkNTRiNzc5M2E2MWRkZjI4OGVm','bWVhc3VyZW1lbnRJZA==','Ry1INU1XR0ZYSjVN'];
+        const _0x1f8d = function(index) { return atob(_0x4a2c[index]); };
+        
+        // Initialize Firebase
+        let db;
+        const initializeDB = () => {
+            const config = {};
+            for(let i = 0; i < _0x4a2c.length; i += 2) {
+                config[_0x1f8d(i)] = _0x1f8d(i + 1);
+            }
+            firebase.initializeApp(config);
+            db = firebase.firestore();
+            
+            // Enable offline persistence
+            db.enablePersistence().catch((err) => {
+                if (err.code == 'failed-precondition') {
+                    console.log('Persistence failed');
+                } else if (err.code == 'unimplemented') {
+                    console.log('Persistence not available');
+                }
+            });
+            
+            // Initialize collections
+            initializeCollections();
+        };
+        
+        // Initialize collections if they don't exist
+        const initializeCollections = async () => {
+            try {
+                // Check if admin exists
+                const adminDoc = await db.collection('users').doc('admin').get();
+                if (!adminDoc.exists) {
+                    await db.collection('users').doc('admin').set({
+                        username: 'Admin',
+                        password: btoa('solucione7072'), // Basic encoding
+                        role: 'admin',
+                        blocked: false,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                
+                // Load initial data
+                loadDataFromDB();
+            } catch (error) {
+                console.error('Error initializing:', error);
+            }
+        };
+        
+        // Load data from Firebase
+        const loadDataFromDB = async () => {
+            try {
+                // Load users
+                const usersSnapshot = await db.collection('users').get();
+                users = [];
+                usersSnapshot.forEach(doc => {
+                    users.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Load trends
+                const trendsSnapshot = await db.collection('trends').get();
+                trends = [];
+                trendsSnapshot.forEach(doc => {
+                    trends.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Load history
+                const historySnapshot = await db.collection('history').get();
+                history = { logins: [], confirmations: [], logouts: [] };
+                historySnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.type === 'login') history.logins.push(data);
+                    else if (data.type === 'confirmation') history.confirmations.push(data);
+                    else if (data.type === 'logout') history.logouts.push(data);
+                });
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        };
+        
+        // Initial Data (will be overwritten by Firebase data)
+        let users = [
+            { id: 'admin', username: 'Admin', password: btoa('solucione7072'), role: 'admin', blocked: false }
+        ];
+        
+        let trends = [
+            { id: 1, title: 'Inteligencia Artificial', description: 'El futuro de la tecnología con IA generativa', category: 'Tecnología', date: '2025-01-20', views: 1523, completedBy: [] },
+            { id: 2, title: 'Sostenibilidad Digital', description: 'Reduciendo la huella de carbono en tech', category: 'Medio Ambiente', date: '2025-01-19', views: 892, completedBy: [] },
+            { id: 3, title: 'Web3 y Blockchain', description: 'La nueva internet descentralizada', category: 'Tecnología', date: '2025-01-18', views: 2104, completedBy: [] }
+        ];
+        
+        let history = {
+            logins: [],
+            confirmations: [],
+            logouts: []
+        };
+        
+        let currentUser = null;
+        let activeHistoryTab = 'logins';
+
+        // Login Function with Firebase
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const userSnapshot = await db.collection('users')
+                    .where('username', '==', username)
+                    .limit(1)
+                    .get();
+                
+                if (!userSnapshot.empty) {
+                    const userData = userSnapshot.docs[0].data();
+                    const userId = userSnapshot.docs[0].id;
+                    
+                    if (atob(userData.password) === password) {
+                        if (userData.blocked) {
+                            showError('loginError', 'Tu cuenta está bloqueada. Los trends han finalizado.');
+                            return;
+                        }
+                        
+                        currentUser = { id: userId, ...userData };
+                        
+                        // Log the login
+                        await db.collection('history').add({
+                            type: 'login',
+                            username: userData.username,
+                            time: new Date().toLocaleString(),
+                            role: userData.role,
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        
+                        document.getElementById('loginScreen').style.display = 'none';
+                        document.getElementById('mainApp').style.display = 'block';
+                        
+                        updateUserInterface();
+                        await loadDataFromDB();
+                        loadTrends();
+                        
+                        document.getElementById('username').value = '';
+                        document.getElementById('password').value = '';
+                        hideError('loginError');
+                    } else {
+                        showError('loginError', 'Usuario o contraseña incorrectos');
+                    }
+                } else {
+                    showError('loginError', 'Usuario o contraseña incorrectos');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('loginError', 'Error al iniciar sesión');
+            }
+        }
+
+        // Logout Function with Firebase
+        async function logout() {
+            if (currentUser) {
+                try {
+                    await db.collection('history').add({
+                        type: 'logout',
+                        username: currentUser.username,
+                        time: new Date().toLocaleString(),
+                        role: currentUser.role,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+            }
+            
+            currentUser = null;
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+            showSection('trends');
+        }
+
+        // Update User Interface based on role
+        function updateUserInterface() {
+            document.getElementById('currentUsername').textContent = currentUser.username;
+            document.getElementById('currentRole').textContent = currentUser.role === 'admin' ? 'Administrador' : 'Usuario';
+            
+            if (currentUser.role === 'admin') {
+                document.getElementById('usersNav').style.display = 'block';
+                document.getElementById('historyNav').style.display = 'block';
+                document.getElementById('addTrendBtn').style.display = 'block';
+            } else {
+                document.getElementById('usersNav').style.display = 'none';
+                document.getElementById('historyNav').style.display = 'none';
+                document.getElementById('addTrendBtn').style.display = 'none';
+            }
+        }
+
+        // Show Section
+        function showSection(section) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            document.getElementById('trendsSection').style.display = 'none';
+            document.getElementById('usersSection').style.display = 'none';
+            document.getElementById('historySection').style.display = 'none';
+            
+            if (section === 'trends') {
+                document.getElementById('trendsSection').style.display = 'block';
+                document.querySelectorAll('.nav-item')[0].classList.add('active');
+                loadTrends();
+            } else if (section === 'users' && currentUser.role === 'admin') {
+                document.getElementById('usersSection').style.display = 'block';
+                document.querySelectorAll('.nav-item')[1].classList.add('active');
+                loadUsers();
+            } else if (section === 'history' && currentUser.role === 'admin') {
+                document.getElementById('historySection').style.display = 'block';
+                document.querySelectorAll('.nav-item')[2].classList.add('active');
+                updateHistoryStats();
+                showHistoryTab(activeHistoryTab);
+            }
+        }
+
+        // Load Trends
+        function loadTrends() {
+            const grid = document.getElementById('trendsGrid');
+            grid.innerHTML = '';
+            
+            trends.forEach(trend => {
+                const isCompleted = trend.completedBy && trend.completedBy.includes(currentUser.username);
+                const card = document.createElement('div');
+                card.className = 'card trend-card';
+                card.innerHTML = `
+                    <div class="trend-header">
+                        <span class="category-badge">${trend.category}</span>
+                        ${currentUser.role === 'admin' ? `<button class="btn btn-danger" onclick="deleteTrend('${trend.id}')" style="padding: 6px 12px; font-size: 12px;">Eliminar</button>` : ''}
+                    </div>
+                    <h3>${trend.title}</h3>
+                    <p style="color: #666; margin: 10px 0;">${trend.description}</p>
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #999;">
+                        <span>${trend.date}</span>
+                        <span>${trend.views} vistas</span>
+                    </div>
+                    <div class="trend-status">
+                        ${isCompleted ? 
+                            '<span class="status-completed">✓ Completado</span>' : 
+                            `<button class="confirm-btn" onclick="confirmTrend('${trend.id}')">Confirmar Realización</button>`
+                        }
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Confirm Trend with Firebase
+        async function confirmTrend(trendId) {
+            try {
+                const trendRef = db.collection('trends').doc(trendId);
+                const trendDoc = await trendRef.get();
+                
+                if (trendDoc.exists) {
+                    const trendData = trendDoc.data();
+                    const completedBy = trendData.completedBy || [];
+                    
+                    if (!completedBy.includes(currentUser.username)) {
+                        completedBy.push(currentUser.username);
+                        
+                        await trendRef.update({
+                            completedBy: completedBy
+                        });
+                        
+                        await db.collection('history').add({
+                            type: 'confirmation',
+                            username: currentUser.username,
+                            trend: trendData.title,
+                            time: new Date().toLocaleString(),
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        
+                        await loadDataFromDB();
+                        loadTrends();
+                    }
+                }
+            } catch (error) {
+                console.error('Error confirming trend:', error);
+            }
+        }
+
+        // Load Users
+        function loadUsers() {
+            const table = document.getElementById('usersTable');
+            table.innerHTML = '';
+            
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="icon-user">
+                                ${user.username.charAt(0).toUpperCase()}
+                            </div>
+                            ${user.username}
+                        </div>
+                    </td>
+                    <td><span class="user-badge ${user.role === 'admin' ? 'badge-admin' : 'badge-user'}">${user.role === 'admin' ? 'Administrador' : 'Usuario'}</span></td>
+                    <td><span class="user-badge ${user.blocked ? 'badge-blocked' : 'badge-active'}">${user.blocked ? 'Bloqueado' : 'Activo'}</span></td>
+                    <td>
+                        ${user.id !== 'admin' ? `
+                            <button class="btn ${user.blocked ? 'btn-success' : 'btn-secondary'}" onclick="toggleBlockUser('${user.id}')" style="padding: 8px 16px; margin-right: 8px;">
+                                ${user.blocked ? 'Desbloquear' : 'Bloquear'}
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteUser('${user.id}')" style="padding: 8px 16px;">
+                                Eliminar
+                            </button>
+                        ` : '<span style="color: #999;">Administrador principal</span>'}
+                    </td>
+                `;
+                table.appendChild(row);
+            });
+        }
+
+        // User Management Functions with Firebase
+        async function createUser() {
+            const username = document.getElementById('newUsername').value;
+            const password = document.getElementById('newPassword').value;
+            const role = document.getElementById('newRole').value;
+            
+            if (username && password) {
+                try {
+                    // Check if user exists
+                    const existingUser = await db.collection('users')
+                        .where('username', '==', username)
+                        .get();
+                    
+                    if (!existingUser.empty) {
+                        alert('El usuario ya existe');
+                        return;
+                    }
+                    
+                    await db.collection('users').add({
+                        username: username,
+                        password: btoa(password), // Basic encoding
+                        role: role,
+                        blocked: false,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    closeModal('newUserModal');
+                    await loadDataFromDB();
+                    loadUsers();
+                    
+                    document.getElementById('newUsername').value = '';
+                    document.getElementById('newPassword').value = '';
+                    document.getElementById('newRole').value = 'user';
+                } catch (error) {
+                    console.error('Error creating user:', error);
+                    alert('Error al crear usuario');
+                }
+            }
+        }
+
+        async function deleteUser(userId) {
+            if (confirm('¿Estás seguro de eliminar este usuario?')) {
+                try {
+                    await db.collection('users').doc(userId).delete();
+                    await loadDataFromDB();
+                    loadUsers();
+                } catch (error) {
+                    console.error('Error deleting user:', error);
+                }
+            }
+        }
+
+        async function toggleBlockUser(userId) {
+            try {
+                const userRef = db.collection('users').doc(userId);
+                const userDoc = await userRef.get();
+                
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    await userRef.update({
+                        blocked: !userData.blocked
+                    });
+                    await loadDataFromDB();
+                    loadUsers();
+                }
+            } catch (error) {
+                console.error('Error toggling user block:', error);
+            }
+        }
+
+        // Trend Management Functions with Firebase
+        async function createTrend() {
+            const title = document.getElementById('trendTitle').value;
+            const description = document.getElementById('trendDescription').value;
+            const category = document.getElementById('trendCategory').value;
+            
+            if (title && description && category) {
+                try {
+                    await db.collection('trends').add({
+                        title: title,
+                        description: description,
+                        category: category,
+                        date: new Date().toISOString().split('T')[0],
+                        views: 0,
+                        completedBy: [],
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    closeModal('newTrendModal');
+                    await loadDataFromDB();
+                    loadTrends();
+                    
+                    document.getElementById('trendTitle').value = '';
+                    document.getElementById('trendDescription').value = '';
+                    document.getElementById('trendCategory').value = '';
+                } catch (error) {
+                    console.error('Error creating trend:', error);
+                    alert('Error al crear trend');
+                }
+            }
+        }
+
+        async function deleteTrend(trendId) {
+            if (confirm('¿Estás seguro de eliminar este trend?')) {
+                try {
+                    await db.collection('trends').doc(trendId).delete();
+                    await loadDataFromDB();
+                    loadTrends();
+                } catch (error) {
+                    console.error('Error deleting trend:', error);
+                }
+            }
+        }
+
+        // History Functions
+        function updateHistoryStats() {
+            document.getElementById('totalLogins').textContent = history.logins.length;
+            document.getElementById('totalConfirmations').textContent = history.confirmations.length;
+            document.getElementById('totalLogouts').textContent = history.logouts.length;
+        }
+
+        function showHistoryTab(tab) {
+            activeHistoryTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const content = document.getElementById('historyContent');
+            content.innerHTML = '';
+            
+            let entries = [];
+            if (tab === 'logins') {
+                entries = history.logins;
+            } else if (tab === 'confirmations') {
+                entries = history.confirmations;
+            } else if (tab === 'logouts') {
+                entries = history.logouts;
+            }
+            
+            if (entries.length === 0) {
+                content.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No hay registros disponibles</p>';
+            } else {
+                entries.sort((a, b) => new Date(b.time) - new Date(a.time));
+                entries.forEach(entry => {
+                    const div = document.createElement('div');
+                    div.className = 'history-entry';
+                    
+                    if (tab === 'logins') {
+                        div.innerHTML = `
+                            <div>
+                                <strong>${entry.username}</strong> - 
+                                <span class="user-badge ${entry.role === 'admin' ? 'badge-admin' : 'badge-user'}">${entry.role === 'admin' ? 'Admin' : 'Usuario'}</span>
+                            </div>
+                            <span class="history-time">${entry.time}</span>
+                        `;
+                    } else if (tab === 'confirmations') {
+                        div.innerHTML = `
+                            <div>
+                                <strong>${entry.username}</strong> confirmó: <em>${entry.trend}</em>
+                            </div>
+                            <span class="history-time">${entry.time}</span>
+                        `;
+                    } else if (tab === 'logouts') {
+                        div.innerHTML = `
+                            <div>
+                                <strong>${entry.username}</strong> - 
+                                <span class="user-badge ${entry.role === 'admin' ? 'badge-admin' : 'badge-user'}">${entry.role === 'admin' ? 'Admin' : 'Usuario'}</span>
+                            </div>
+                            <span class="history-time">${entry.time}</span>
+                        `;
+                    }
+                    
+                    content.appendChild(div);
+                });
+            }
+        }
+
+        // Modal Functions
+        function showNewUserModal() {
+            document.getElementById('newUserModal').style.display = 'block';
+        }
+
+        function showNewTrendModal() {
+            document.getElementById('newTrendModal').style.display = 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Toggle Sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            
+            if (sidebar.classList.contains('collapsed')) {
+                document.getElementById('sidebarTitle').style.display = 'none';
+                document.getElementById('userInfo').style.display = 'none';
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.style.fontSize = '12px';
+                    const text = item.textContent.trim();
+                    if (text === 'Trends') item.innerHTML = 'T';
+                    else if (text === 'Usuarios') item.innerHTML = 'U';
+                    else if (text === 'Historial') item.innerHTML = 'H';
+                    else if (text === 'Cerrar Sesión') item.innerHTML = 'X';
+                });
+            } else {
+                document.getElementById('sidebarTitle').style.display = 'block';
+                document.getElementById('userInfo').style.display = 'block';
+                setTimeout(() => {
+                    document.querySelectorAll('.nav-item').forEach((item, index) => {
+                        item.style.fontSize = '15px';
+                        if (index === 0) item.innerHTML = 'Trends';
+                        else if (index === 1) item.innerHTML = 'Usuarios';
+                        else if (index === 2) item.innerHTML = 'Historial';
+                        else if (index === 3) item.innerHTML = 'Cerrar Sesión';
+                    });
+                }, 150);
+            }
+        }
+
+        // Error Handling
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.textContent = message;
+            errorElement.style.display = 'flex';
+        }
+
+        function hideError(elementId) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.style.display = 'none';
+        }
+
+        // Close modals on outside click
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        }
+        
+        // Initialize Firebase when page loads
+        window.onload = function() {
+            initializeDB();
+        };
+    </script>
+</body>
+</html>
